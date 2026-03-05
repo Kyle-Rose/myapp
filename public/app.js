@@ -1,5 +1,4 @@
-// app.js
-
+// ---------------- MAP SETUP ----------------
 const map = L.map('map').setView([39, -98], 4);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -9,14 +8,14 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 let allFish = [];
 let markers = [];
 
-/* ---------------- LOAD FISH ---------------- */
+// ---------------- LOAD FISH ----------------
 async function loadFish() {
   const res = await fetch('/fish');
   allFish = await res.json();
   displayFish(allFish);
 }
 
-/* ---------------- DISPLAY TABLE + MAP ---------------- */
+// ---------------- DISPLAY TABLE + MAP ----------------
 function displayFish(data) {
   const table = document.getElementById('fishTable');
   table.innerHTML = '';
@@ -26,6 +25,8 @@ function displayFish(data) {
   markers = [];
 
   data.forEach(fish => {
+
+    // Table row
     table.innerHTML += `
       <tr>
         <td>${fish.id}</td>
@@ -39,8 +40,9 @@ function displayFish(data) {
       </tr>
     `;
 
+    // Map marker
     if (fish.latitude && fish.longitude) {
-      const m = L.marker([fish.latitude, fish.longitude])
+      const marker = L.marker([fish.latitude, fish.longitude])
         .addTo(map)
         .bindPopup(`
           <strong>${fish.fish_type}</strong><br>
@@ -48,27 +50,29 @@ function displayFish(data) {
           Lure: ${fish.lure_used}<br>
           Leader: ${fish.leader_length} ft
         `);
-      markers.push(m);
+
+      markers.push(marker);
     }
   });
 
-  if (markers.length) {
+  // Fit map to markers
+  if (markers.length > 0) {
     const group = L.featureGroup(markers);
     map.fitBounds(group.getBounds().pad(0.5));
   }
 }
 
-/* ---------------- GEOCODE FUNCTION ---------------- */
+// ---------------- GEOCODING ----------------
 async function getCoordinates(city, state) {
-  const query = `${city}, ${state}`;
+  const query = `${city}, ${state}, USA`;
 
   const response = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`
+    `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`
   );
 
   const data = await response.json();
 
-  if (data.length === 0) {
+  if (!data || data.length === 0) {
     return { latitude: null, longitude: null };
   }
 
@@ -78,14 +82,14 @@ async function getCoordinates(city, state) {
   };
 }
 
-/* ---------------- ADD FISH ---------------- */
+// ---------------- ADD FISH ----------------
 document.getElementById('fishForm').addEventListener('submit', async (e) => {
   e.preventDefault();
 
   const city = document.getElementById('city').value;
   const state = document.getElementById('state').value;
 
-  // Get coordinates from OpenStreetMap
+  // Get coordinates
   const coords = await getCoordinates(city, state);
 
   await fetch('/fish', {
@@ -94,9 +98,9 @@ document.getElementById('fishForm').addEventListener('submit', async (e) => {
     body: JSON.stringify({
       fish_type: document.getElementById('fish_type').value,
       lure_used: document.getElementById('lure_used').value,
-      leader_length: document.getElementById('leader_length').value,
-      city: city,
-      state: state,
+      leader_length: parseFloat(document.getElementById('leader_length').value),
+      city,
+      state,
       latitude: coords.latitude,
       longitude: coords.longitude
     })
@@ -106,44 +110,37 @@ document.getElementById('fishForm').addEventListener('submit', async (e) => {
   loadFish();
 });
 
-/* ---------------- DELETE FISH ---------------- */
+// ---------------- DELETE FISH ----------------
 async function deleteFish(id) {
-  if (!confirm('Are you sure you want to delete this fish?')) return;
+  if (!confirm('Are you sure?')) return;
 
   await fetch(`/fish/${id}`, { method: 'DELETE' });
   loadFish();
 }
 
-/* ---------------- FILTERS ---------------- */
-const filterForm = document.getElementById('filterForm');
-const resetButton = document.getElementById('reset');
-
-filterForm.addEventListener('submit', (e) => {
+// ---------------- FILTERS ----------------
+document.getElementById('filterForm').addEventListener('submit', (e) => {
   e.preventDefault();
 
   const lure = document.getElementById('filter_lure').value.toLowerCase();
-  const min = document.getElementById('filter_min').value;
-  const max = document.getElementById('filter_max').value;
-
-  const minVal = min === "" ? null : parseFloat(min);
-  const maxVal = max === "" ? null : parseFloat(max);
+  const min = parseFloat(document.getElementById('filter_min').value);
+  const max = parseFloat(document.getElementById('filter_max').value);
 
   const filtered = allFish.filter(f => {
-    const lureMatch = lure === "" || f.lure_used.toLowerCase().includes(lure);
-    const minMatch = minVal === null || f.leader_length >= minVal;
-    const maxMatch = maxVal === null || f.leader_length <= maxVal;
+    const lureMatch = !lure || f.lure_used.toLowerCase().includes(lure);
+    const minMatch = !min || f.leader_length >= min;
+    const maxMatch = !max || f.leader_length <= max;
     return lureMatch && minMatch && maxMatch;
   });
 
   displayFish(filtered);
 });
 
-resetButton.addEventListener('click', () => {
-  document.getElementById('filter_lure').value = "";
-  document.getElementById('filter_min').value = "";
-  document.getElementById('filter_max').value = "";
+// ---------------- RESET FILTERS ----------------
+document.getElementById('reset').addEventListener('click', () => {
+  document.getElementById('filterForm').reset();
   displayFish(allFish);
 });
 
-/* ---------------- INITIAL LOAD ---------------- */
+// ---------------- INITIAL LOAD ----------------
 loadFish();
