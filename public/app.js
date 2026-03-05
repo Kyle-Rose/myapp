@@ -20,13 +20,11 @@ function displayFish(data) {
   const table = document.getElementById('fishTable');
   table.innerHTML = '';
 
-  // Remove old markers
   markers.forEach(m => map.removeLayer(m));
   markers = [];
 
   data.forEach(fish => {
 
-    // Table row
     table.innerHTML += `
       <tr>
         <td>${fish.id}</td>
@@ -40,7 +38,6 @@ function displayFish(data) {
       </tr>
     `;
 
-    // Map marker
     if (fish.latitude && fish.longitude) {
       const marker = L.marker([fish.latitude, fish.longitude])
         .addTo(map)
@@ -55,7 +52,6 @@ function displayFish(data) {
     }
   });
 
-  // Fit map to markers
   if (markers.length > 0) {
     const group = L.featureGroup(markers);
     map.fitBounds(group.getBounds().pad(0.5));
@@ -72,7 +68,7 @@ async function getCoordinates(city, state) {
 
   const data = await response.json();
 
-  if (!data || data.length === 0) {
+  if (!data.length) {
     return { latitude: null, longitude: null };
   }
 
@@ -89,7 +85,6 @@ document.getElementById('fishForm').addEventListener('submit', async (e) => {
   const city = document.getElementById('city').value;
   const state = document.getElementById('state').value;
 
-  // Get coordinates
   const coords = await getCoordinates(city, state);
 
   await fetch('/fish', {
@@ -110,7 +105,7 @@ document.getElementById('fishForm').addEventListener('submit', async (e) => {
   loadFish();
 });
 
-// ---------------- DELETE FISH ----------------
+// ---------------- DELETE ----------------
 async function deleteFish(id) {
   if (!confirm('Are you sure?')) return;
 
@@ -118,7 +113,7 @@ async function deleteFish(id) {
   loadFish();
 }
 
-// ---------------- FILTERS ----------------
+// ---------------- FILTER ----------------
 document.getElementById('filterForm').addEventListener('submit', (e) => {
   e.preventDefault();
 
@@ -136,7 +131,7 @@ document.getElementById('filterForm').addEventListener('submit', (e) => {
   displayFish(filtered);
 });
 
-// ---------------- RESET FILTERS ----------------
+// ---------------- RESET ----------------
 document.getElementById('reset').addEventListener('click', () => {
   document.getElementById('filterForm').reset();
   displayFish(allFish);
