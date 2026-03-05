@@ -6,13 +6,13 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© OpenStreetMap'
 }).addTo(map);
 
-let allFish = []; // Stores full data
+let allFish = [];
 let markers = [];
 
 /* ---------------- LOAD FISH ---------------- */
 async function loadFish() {
   const res = await fetch('/fish');
-  allFish = await res.json(); // always keep full data
+  allFish = await res.json();
   displayFish(allFish);
 }
 
@@ -39,7 +39,7 @@ function displayFish(data) {
       </tr>
     `;
 
-    if (fish.latitude != null && fish.longitude != null) {
+    if (fish.latitude && fish.longitude) {
       const m = L.marker([fish.latitude, fish.longitude])
         .addTo(map)
         .bindPopup(`
@@ -58,9 +58,35 @@ function displayFish(data) {
   }
 }
 
+/* ---------------- GEOCODE FUNCTION ---------------- */
+async function getCoordinates(city, state) {
+  const query = `${city}, ${state}`;
+
+  const response = await fetch(
+    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`
+  );
+
+  const data = await response.json();
+
+  if (data.length === 0) {
+    return { latitude: null, longitude: null };
+  }
+
+  return {
+    latitude: parseFloat(data[0].lat),
+    longitude: parseFloat(data[0].lon)
+  };
+}
+
 /* ---------------- ADD FISH ---------------- */
 document.getElementById('fishForm').addEventListener('submit', async (e) => {
   e.preventDefault();
+
+  const city = document.getElementById('city').value;
+  const state = document.getElementById('state').value;
+
+  // Get coordinates from OpenStreetMap
+  const coords = await getCoordinates(city, state);
 
   await fetch('/fish', {
     method: 'POST',
@@ -69,8 +95,10 @@ document.getElementById('fishForm').addEventListener('submit', async (e) => {
       fish_type: document.getElementById('fish_type').value,
       lure_used: document.getElementById('lure_used').value,
       leader_length: document.getElementById('leader_length').value,
-      city: document.getElementById('city').value,
-      state: document.getElementById('state').value
+      city: city,
+      state: state,
+      latitude: coords.latitude,
+      longitude: coords.longitude
     })
   });
 
@@ -81,6 +109,7 @@ document.getElementById('fishForm').addEventListener('submit', async (e) => {
 /* ---------------- DELETE FISH ---------------- */
 async function deleteFish(id) {
   if (!confirm('Are you sure you want to delete this fish?')) return;
+
   await fetch(`/fish/${id}`, { method: 'DELETE' });
   loadFish();
 }
@@ -110,12 +139,9 @@ filterForm.addEventListener('submit', (e) => {
 });
 
 resetButton.addEventListener('click', () => {
-  // Clear inputs
   document.getElementById('filter_lure').value = "";
   document.getElementById('filter_min').value = "";
   document.getElementById('filter_max').value = "";
-
-  // Restore full data
   displayFish(allFish);
 });
 
