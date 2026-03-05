@@ -39,7 +39,7 @@ function displayFish(data) {
       </tr>
     `;
 
-    if (fish.latitude && fish.longitude) {
+    if (fish.latitude != null && fish.longitude != null) {
       const m = L.marker([fish.latitude, fish.longitude])
         .addTo(map)
         .bindPopup(`
